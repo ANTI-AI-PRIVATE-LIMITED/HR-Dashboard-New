@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1 class="page-title">Job Applications</h1>
+
+<p class="subtitle">
+    Review and manage candidate applications
+</p>
+
+<!-- TOP ACTION BAR -->
+<div style="display:flex; gap:15px; align-items:center; margin-bottom:25px;">
+
+    <!-- JOB FILTER -->
+    <form method="get">
+        <select name="job_id" onchange="this.form.submit()">
+            <option value="">All Jobs</option>
+            {% for job in jobs %}
+                <option value="{{ job['id'] }}"
+                    {% if selected_job == job['id']|string %}selected{% endif %}>
+                    {{ job['title'] }}
+                </option>
+            {% endfor %}
+        </select>
+    </form>
+
+    <!-- DOWNLOAD ALL EXCEL -->
+    <a href="/export-applications">
+        <button>Download All Excel</button>
+    </a>
+
+    <!-- DOWNLOAD FILTERED EXCEL -->
+    {% if selected_job %}
+        <a href="/export-applications/{{ selected_job }}">
+            <button>Download Filtered Excel</button>
+        </a>
+    {% endif %}
+
+</div>
+
+<!-- APPLICATIONS TABLE -->
+<div class="card">
+
+    <table>
+        <thead>
+            <tr>
+                <th>Job</th>
+                <th>Applicant</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Resume</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for app in applications %}
+            <tr>
+                <td>{{ app["job_title"] }}</td>
+                <td>{{ app["applicant_name"] }}</td>
+                <td>{{ app["email"] }}</td>
+                <td>{{ app["phone"] }}</td>
+                <td>
+                    <a href="/resume/{{ app['resume_path'] }}" target="_blank">
+                        View Resume
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" style="text-align:center; color:#94a3b8;">
+                    No applications found
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
+{% endblock %}

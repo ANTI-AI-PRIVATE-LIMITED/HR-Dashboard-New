@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="dashboard-center">
+
+    <h1>Welcome to HR Dashboard</h1>
+
+    <p class="subtitle">
+        Overview of your hiring activity
+    </p>
+
+    <div class="stats">
+
+        <div class="stat-card">
+            <span>Total Jobs</span>
+            <p>{{ total_jobs }}</p>
+        </div>
+
+        <div class="stat-card">
+            <span>Total Applications</span>
+            <p>{{ total_applications }}</p>
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Apply Job</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<div class="container" style="max-width:500px;">
+
+    <h2>Apply for {{ job["title"] }}</h2>
+
+    <form method="POST" enctype="multipart/form-data">
+
+        <input type="text" name="name" placeholder="Full Name" required>
+
+        <input type="email" name="email" placeholder="Email Address" required>
+
+        <input type="text" name="phone" placeholder="Phone Number" required>
+
+        <input type="file" name="resume" required>
+
+        <button type="submit">Submit Application</button>
+    </form>
+
+</div>
+
+</body>
+</html>

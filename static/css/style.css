@@ -1,0 +1,226 @@
+/* ================= GLOBAL RESET ================= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    background: #050505;
+    color: #ffffff;
+}
+
+
+/* ================= APP LAYOUT ================= */
+.app-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ================= SIDEBAR (PERSISTENT) ================= */
+.sidebar {
+    width: 240px;
+    background: linear-gradient(180deg, #050505, #0c0c0c);
+    padding: 30px 20px;
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    border-right: 1px solid #111;
+    box-shadow: 5px 0 30px rgba(0,0,0,0.6);
+}
+
+.sidebar .logo {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.sidebar .logo img {
+    width: 70px;
+    opacity: 0.9;
+}
+
+/* NAV LINKS (NO ICONS, CLEAN TEXT) */
+.sidebar nav a {
+    display: block;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    border-radius: 10px;
+    color: #cfcfcf;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.sidebar nav a:hover {
+    background: #1a1a1a;
+    transform: translateX(4px);
+    color: #ffffff;
+}
+
+.sidebar nav a.active {
+    background: linear-gradient(135deg, #38bdf8, #6366f1);
+    color: #020617;
+    font-weight: 600;
+}
+
+/* ================= MAIN CONTENT ================= */
+.main-content {
+    margin-left: 240px;
+    padding: 60px;
+    width: calc(100% - 240px);
+}
+
+/* ================= HEADINGS ================= */
+h1 {
+    font-size: 42px;
+    text-align: center;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    text-align: center;
+    color: #8a8a8a;
+    margin-bottom: 50px;
+}
+
+/* ================= CARDS ================= */
+.card {
+    background: #0b0b0b;
+    border-radius: 18px;
+    padding: 35px;
+    border: 1px solid #1a1a1a;
+}
+
+/* ================= DASHBOARD STATS ================= */
+.stats {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+}
+
+.stat-card {
+    min-width: 220px;
+    padding: 30px 40px;
+    background: #0b0b0b;
+    border-radius: 18px;
+    border: 1px solid #1a1a1a;
+    text-align: center;
+}
+
+.stat-card span {
+    color: #9a9a9a;
+    letter-spacing: 1px;
+}
+
+.stat-card p {
+    font-size: 38px;
+    margin-top: 10px;
+}
+
+/* ================= FORMS ================= */
+input, textarea, select {
+    width: 100%;
+    padding: 14px;
+    background: #050505;
+    border: 1px solid #222;
+    border-radius: 10px;
+    color: #fff;
+    margin-bottom: 16px;
+}
+
+input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: #444;
+}
+
+/* ================= BUTTON ================= */
+button {
+    background: #ffffff;
+    color: #000;
+    padding: 14px 26px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.25s;
+}
+
+button:hover {
+    background: #e6e6e6;
+}
+
+/* ================= TABLE ================= */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 25px;
+}
+
+thead th {
+    padding: 14px;
+    text-align: left;
+    color: #8a8a8a;
+    border-bottom: 1px solid #222;
+}
+
+tbody td {
+    padding: 16px;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+tbody tr:hover {
+    background: #0f0f0f;
+}
+
+/* ================= LINKS ================= */
+a {
+    color: #d4d4d4;
+    text-decoration: none;
+}
+
+a:hover {
+    color: #ffffff;
+}
+
+/* ================= LOGIN PAGE ================= */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #050505;
+    position: relative;
+}
+
+/* FLOATING LOGO (LOGIN KE UPPER, FORM MOVE NAHI HOGA) */
+.login-logo {
+    position: absolute;
+    top: calc(50% - 300px);
+}
+
+.login-logo img {
+    width: 110px;
+    opacity: 0.9;
+    filter: drop-shadow(0 0 15px rgba(255,255,255,0.25));
+}
+
+/* LOGIN CARD */
+.login-card {
+    width: 420px;
+    padding: 35px;
+    background: #0b0b0b;
+    border-radius: 18px;
+    text-align: center;
+    border: 1px solid #1a1a1a;
+}
+
+.login-title {
+    margin-bottom: 30px;
+    letter-spacing: 4px;
+}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1 class="page-title">Manage Jobs</h1>
+
+<p class="subtitle">
+    Create and manage open positions
+</p>
+
+<div style="display:grid; grid-template-columns: 1fr 2fr; gap:30px;">
+
+    <!-- ADD JOB FORM -->
+    <div class="card">
+        <h3>Add New Job</h3>
+
+        <form method="POST" style="margin-top:20px;">
+            <input type="text" name="title" placeholder="Job Title" required>
+            <textarea name="description" placeholder="Job Description" required></textarea>
+            <input type="text" name="location" placeholder="Location" required>
+            <input type="text" name="job_type" placeholder="Job Type (Intern / Full-time)" required>
+
+            <button type="submit">Add Job</button>
+        </form>
+    </div>
+
+    <!-- JOBS TABLE -->
+    <div class="card">
+        <h3>All Jobs</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Location</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+            {% for job in jobs %}
+                <tr>
+                    <td>{{ job["title"] }}</td>
+                    <td>{{ job["location"] }}</td>
+                    <td>{{ job["job_type"] }}</td>
+                    <td>
+                        <a href="/apply/{{ job['id'] }}">Apply</a> |
+                        <a href="/edit-job/{{ job['id'] }}">Edit</a> |
+                        <a href="/delete-job/{{ job['id'] }}">Delete</a>
+                    </td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="4" style="text-align:center;color:#94a3b8;">
+                        No jobs found
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+{% endblock %}

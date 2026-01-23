@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title or "HR Panel" }}</title>
+
+    <!-- MAIN CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="app-container">
+
+    <!-- ================= SIDEBAR (FIXED) ================= -->
+    <aside class="sidebar">
+
+        <!-- LOGO -->
+        <div class="logo">
+            <img src="{{ url_for('static', filename='images/logo.png') }}"
+                 alt="Logo"
+                 style="width:70px;">
+        </div>
+
+        <!-- NAVIGATION -->
+        <nav class="sidebar-nav">
+            <a href="/dashboard" class="{% if request.path == '/dashboard' %}active{% endif %}">
+                 Home
+            </a>
+
+            <a href="/jobs" class="{% if request.path.startswith('/jobs') %}active{% endif %}">
+                 Manage Jobs
+            </a>
+
+            <a href="/applications" class="{% if request.path.startswith('/applications') %}active{% endif %}">
+                 View Applications
+            </a>
+
+            <a href="/settings" class="{% if request.path.startswith('/settings') %}active{% endif %}">
+                ⚙️ Settings
+            </a>
+        </nav>
+
+    </aside>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+</div>
+
+</body>
+</html>
