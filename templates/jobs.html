@@ -10,18 +10,27 @@
 
 <div style="display:grid; grid-template-columns: 1fr 2fr; gap:30px;">
 
-    <!-- ADD JOB FORM -->
+    <!-- ADD JOB DROPDOWN -->
     <div class="card">
-        <h3>Add New Job</h3>
 
-        <form method="POST" style="margin-top:20px;">
-            <input type="text" name="title" placeholder="Job Title" required>
-            <textarea name="description" placeholder="Job Description" required></textarea>
-            <input type="text" name="location" placeholder="Location" required>
-            <input type="text" name="job_type" placeholder="Job Type (Intern / Full-time)" required>
+        <!-- HEADER -->
+        <div class="add-job-header" onclick="toggleAddJob()">
+            <h3 style="margin:0;">Add New Job</h3>
+            <span id="addJobIcon">▼</span>
+        </div>
 
-            <button type="submit">Add Job</button>
-        </form>
+        <!-- BODY (HIDDEN) -->
+        <div id="addJobBody" class="add-job-body">
+            <form method="POST" style="margin-top:20px;">
+                <input type="text" name="title" placeholder="Job Title" required>
+                <textarea name="description" placeholder="Job Description" required></textarea>
+                <input type="text" name="location" placeholder="Location" required>
+                <input type="text" name="job_type" placeholder="Job Type (Intern / Full-time)" required>
+
+                <button type="submit">Add Job</button>
+            </form>
+        </div>
+
     </div>
 
     <!-- JOBS TABLE -->
@@ -62,5 +71,51 @@
     </div>
 
 </div>
+
+<!-- JS -->
+<script>
+function toggleAddJob() {
+    const body = document.getElementById("addJobBody");
+    const icon = document.getElementById("addJobIcon");
+
+    body.classList.toggle("open");
+
+    if (body.classList.contains("open")) {
+        icon.innerText = "▲";
+    } else {
+        icon.innerText = "▼";
+    }
+}
+</script>
+
+<!-- CSS -->
+<style>
+.add-job-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.add-job-header:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.add-job-body {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.4s ease, opacity 0.3s ease;
+}
+
+.add-job-body.open {
+    max-height: 500px;
+    opacity: 1;
+    margin-top: 10px;
+}
+</style>
 
 {% endblock %}
