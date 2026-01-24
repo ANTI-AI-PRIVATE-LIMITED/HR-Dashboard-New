@@ -33,21 +33,19 @@ import os
 def view_resume(filename):
     resume_folder = os.path.join(app.root_path, "uploads", "resumes")
     return send_from_directory(resume_folder, filename)
+
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         email = request.form["email"]
         password = request.form["password"]
 
-        # 🔥 TEMP HARD CODE LOGIN
-        if email == "hr@company.com" and password == "admin123":
-            session["hr_logged_in"] = True
+        # TEMP ADMIN (FOR DEPLOY)
+        if email == "admin@hr.com" and password == "admin123":
+            session["user"] = email
             return redirect("/dashboard")
-        else:
-            return render_template(
-                "login.html",
-                error="Invalid login"
-            )
+
+        return "Invalid login", 401
 
     return render_template("login.html")
 
@@ -78,6 +76,7 @@ def settings():
 def logout():
     session.clear()
     return redirect("/")
+
 
 @app.route("/jobs", methods=["GET", "POST"])
 def jobs():
