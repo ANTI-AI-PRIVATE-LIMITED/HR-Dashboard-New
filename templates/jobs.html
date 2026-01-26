@@ -15,7 +15,7 @@
 
         <!-- HEADER -->
         <div class="add-job-header" onclick="toggleAddJob()">
-            <h3 style="margin:0;">Add New Job</h3>
+            <h3 style="margin:0;">➕ Add New Job</h3>
             <span id="addJobIcon">▼</span>
         </div>
 
@@ -72,7 +72,7 @@
 
 </div>
 
-<!-- JS -->
+<!-- ================= JS ================= -->
 <script>
 function toggleAddJob() {
     const body = document.getElementById("addJobBody");
@@ -88,8 +88,10 @@ function toggleAddJob() {
 }
 </script>
 
-<!-- CSS -->
+<!-- ================= CSS ================= -->
 <style>
+
+/* ---------- Add Job Dropdown ---------- */
 .add-job-header {
     display: flex;
     justify-content: space-between;
@@ -98,10 +100,11 @@ function toggleAddJob() {
     padding: 12px;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
+    transition: background 0.3s ease;
 }
 
 .add-job-header:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .add-job-body {
@@ -116,6 +119,47 @@ function toggleAddJob() {
     opacity: 1;
     margin-top: 10px;
 }
+
+/* ---------- Card Hover ---------- */
+.card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(255, 255, 255, 0.12);
+}
+
+/* ---------- Table Row Hover ---------- */
+table tbody tr {
+    transition: background 0.3s ease;
+}
+
+table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* ---------- Input & Textarea Focus ---------- */
+input, textarea {
+    transition: border 0.3s ease, box-shadow 0.3s ease;
+}
+
+input:focus, textarea:focus {
+    outline: none;
+    border: 1px solid #60a5fa;
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+}
+
+/* ---------- Button Hover ---------- */
+button {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 255, 255, 0.15);
+}
+
 </style>
 
 {% endblock %}

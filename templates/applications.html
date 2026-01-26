@@ -8,37 +8,42 @@
     Review and manage candidate applications
 </p>
 
-<!-- TOP ACTION BAR -->
-<div style="display:flex; gap:15px; align-items:center; margin-bottom:25px;">
+<!-- ================= TOP ACTION BAR ================= -->
+<div class="action-bar">
 
-    <!-- JOB FILTER -->
-    <form method="get">
+    <!-- LEFT : JOB FILTER -->
+    <form method="get" class="filter-form">
         <select name="job_id" onchange="this.form.submit()">
             <option value="">All Jobs</option>
+
             {% for job in jobs %}
                 <option value="{{ job['id'] }}"
-                    {% if selected_job == job['id']|string %}selected{% endif %}>
+                    {% if selected_job and job['id']|string == selected_job %}
+                        selected
+                    {% endif %}
+                >
                     {{ job['title'] }}
                 </option>
             {% endfor %}
         </select>
     </form>
 
-    <!-- DOWNLOAD ALL EXCEL -->
-    <a href="/export-applications">
-        <button>Download All Excel</button>
-    </a>
-
-    <!-- DOWNLOAD FILTERED EXCEL -->
-    {% if selected_job %}
-        <a href="/export-applications/{{ selected_job }}">
-            <button>Download Filtered Excel</button>
+    <!-- RIGHT : DOWNLOAD BUTTONS -->
+    <div class="download-buttons">
+        <a href="/export-applications">
+            <button type="button">Download All Excel</button>
         </a>
-    {% endif %}
+
+        {% if selected_job %}
+            <a href="/export-applications/{{ selected_job }}">
+                <button type="button">Download Filtered Excel</button>
+            </a>
+        {% endif %}
+    </div>
 
 </div>
 
-<!-- APPLICATIONS TABLE -->
+<!-- ================= APPLICATIONS TABLE ================= -->
 <div class="card">
 
     <table>
@@ -76,5 +81,48 @@
     </table>
 
 </div>
+
+<!-- ================= PAGE CSS ================= -->
+<style>
+/* Action bar layout */
+.action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    gap: 20px;
+}
+
+/* Filter form */
+.filter-form select {
+    padding: 8px 12px;
+    min-width: 180px;
+}
+
+/* Download buttons */
+.download-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+/* Table hover effect */
+table tbody tr {
+    transition: background 0.25s ease;
+}
+
+table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* Resume link */
+table a {
+    color: #60a5fa;
+    text-decoration: none;
+}
+
+table a:hover {
+    text-decoration: underline;
+}
+</style>
 
 {% endblock %}

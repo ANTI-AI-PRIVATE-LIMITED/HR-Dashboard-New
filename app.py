@@ -235,33 +235,55 @@ def apply(job_id):
 # =========================
 # APPLICATIONS
 # =========================
+# =========================
+# APPLICATIONS
+# =========================
 @app.route("/applications")
 def applications():
     if not session.get("hr_logged_in"):
         return redirect("/")
 
+    selected_job = request.args.get("job_id")
+
     db = get_db(dict_cursor=True)
     cur = db.cursor()
 
-    cur.execute("""
-        SELECT applications.*, jobs.title AS job_title
-        FROM applications
-        JOIN jobs ON applications.job_id = jobs.id
-        ORDER BY applications.id DESC
-    """)
-    applications = cur.fetchall()
-
+    # Jobs for dropdown
     cur.execute("SELECT id, title FROM jobs")
     jobs = cur.fetchall()
 
+    # Base query
+    query = """
+        SELECT applications.*, jobs.title AS job_title
+        FROM applications
+        JOIN jobs ON applications.job_id = jobs.id
+    """
+    params = []
+
+    # Apply filter if selected
+    if selected_job:
+        query += " WHERE jobs.id = %s"
+        params.append(selected_job)
+
+    query += " ORDER BY applications.id DESC"
+
+    cur.execute(query, params)
+    applications = cur.fetchall()
+
     db.close()
-    return render_template("applications.html", applications=applications, jobs=jobs)
+
+    return render_template(
+        "applications.html",
+        applications=applications,
+        jobs=jobs,
+        selected_job=selected_job
+    )
 
 # =========================
 # EXPORT
 # =========================
-@app.route("/export-applications")
-def export_applications():
+@app.route("/export-applications/<int:job_id>")
+def export_filtered_applications(job_id):
     if not session.get("hr_logged_in"):
         return redirect("/")
 
@@ -273,9 +295,10 @@ def export_applications():
                applications.phone AS Phone
         FROM applications
         JOIN jobs ON applications.job_id = jobs.id
-    """, db)
+        WHERE jobs.id = %s
+    """, db, params=(job_id,))
 
-    file_path = os.path.join(BASE_DIR, "applications.xlsx")
+    file_path = os.path.join(BASE_DIR, "filtered_applications.xlsx")
     df.to_excel(file_path, index=False)
     db.close()
 
