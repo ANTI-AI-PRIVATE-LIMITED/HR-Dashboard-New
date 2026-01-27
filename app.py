@@ -5,6 +5,7 @@ import psycopg2
 import psycopg2.extras
 from urllib.parse import urlparse
 from datetime import date
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # =========================
 # BASIC APP CONFIG
@@ -19,7 +20,7 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
 # =========================
-# DATABASE CONNECTION (PostgreSQL)
+# DATABASE CONNECTION
 # =========================
 def get_db(dict_cursor=False):
     db_url = os.environ.get("DATABASE_URL")
@@ -28,27 +29,15 @@ def get_db(dict_cursor=False):
 
     result = urlparse(db_url)
 
-    if dict_cursor:
-        conn = psycopg2.connect(
-            dbname=result.path[1:],
-            user=result.username,
-            password=result.password,
-            host=result.hostname,
-            port=result.port,
-            sslmode="require",
-            cursor_factory=psycopg2.extras.RealDictCursor
-        )
-    else:
-        conn = psycopg2.connect(
-            dbname=result.path[1:],
-            user=result.username,
-            password=result.password,
-            host=result.hostname,
-            port=result.port,
-            sslmode="require"
-        )
-
-    return conn
+    return psycopg2.connect(
+        dbname=result.path[1:],
+        user=result.username,
+        password=result.password,
+        host=result.hostname,
+        port=result.port,
+        sslmode="require",
+        cursor_factory=psycopg2.extras.RealDictCursor if dict_cursor else None
+    )
 
 # =========================
 # INIT DATABASE
@@ -57,28 +46,23 @@ def init_db():
     conn = get_db()
     cur = conn.cursor()
 
-    # Create jobs table (basic)
+    # Jobs
     cur.execute("""
         CREATE TABLE IF NOT EXISTS jobs (
             id SERIAL PRIMARY KEY,
             title TEXT,
             description TEXT,
             location TEXT,
-            job_type TEXT
+            job_type TEXT,
+            posted_at DATE DEFAULT CURRENT_DATE
         )
     """)
 
-    # Add posted_at column safely (if not exists)
-    cur.execute("""
-        ALTER TABLE jobs
-        ADD COLUMN IF NOT EXISTS posted_at DATE DEFAULT CURRENT_DATE
-    """)
-
-    # Create applications table
+    # Applications (CASCADE DELETE FIX)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS applications (
             id SERIAL PRIMARY KEY,
-            job_id INTEGER REFERENCES jobs(id),
+            job_id INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
             applicant_name TEXT,
             email TEXT,
             phone TEXT,
@@ -87,35 +71,67 @@ def init_db():
         )
     """)
 
+    # Admins (for settings / change password)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS admins (
+            id SERIAL PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        )
+    """)
+
+    # Default admin (only once)
+    cur.execute("""
+        INSERT INTO admins (email, password)
+        SELECT %s, %s
+        WHERE NOT EXISTS (SELECT 1 FROM admins WHERE email=%s)
+    """, (
+        "admin@hr.com",
+        generate_password_hash("admin123"),
+        "admin@hr.com"
+    ))
+
     conn.commit()
     conn.close()
-
 
 with app.app_context():
     init_db()
 
 # =========================
-# AUTH
+# RESUME VIEW (URL OPEN / DOWNLOAD)
 # =========================
 @app.route("/resume/<path:filename>")
 def view_resume(filename):
     return send_from_directory(
         app.config["UPLOAD_FOLDER"],
         filename,
-        as_attachment=False   # browser decide kare open/download
+        as_attachment=False
     )
 
-
+# =========================
+# AUTH
+# =========================
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        if request.form.get("email") == "admin@hr.com" and request.form.get("password") == "admin123":
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        db = get_db(dict_cursor=True)
+        cur = db.cursor()
+        cur.execute("SELECT * FROM admins WHERE email=%s", (email,))
+        admin = cur.fetchone()
+        db.close()
+
+        if admin and check_password_hash(admin["password"], password):
             session.clear()
             session["hr_logged_in"] = True
+            session["admin_email"] = email
             return redirect("/dashboard")
-        return "Invalid login", 401
-    return render_template("login.html")
 
+        return "Invalid login", 401
+
+    return render_template("login.html")
 
 @app.route("/logout")
 def logout():
@@ -138,7 +154,8 @@ def dashboard():
     total_applications = cur.fetchone()[0]
     db.close()
 
-    return render_template("dashboard.html",
+    return render_template(
+        "dashboard.html",
         total_jobs=total_jobs,
         total_applications=total_applications
     )
@@ -170,21 +187,7 @@ def jobs():
     jobs = cur.fetchall()
     db.close()
 
-    return render_template(
-    "jobs.html",
-    jobs=jobs,
-    today=date.today().strftime("%d %b %Y")
-)
-
-
-# =========================
-# SETTINGS
-# =========================
-@app.route("/settings")
-def settings():
-    if not session.get("hr_logged_in"):
-        return redirect("/")
-    return render_template("settings.html")
+    return render_template("jobs.html", jobs=jobs)
 
 @app.route("/delete-job/<int:id>")
 def delete_job(id):
@@ -196,6 +199,7 @@ def delete_job(id):
     cur.execute("DELETE FROM jobs WHERE id=%s", (id,))
     db.commit()
     db.close()
+
     return redirect("/jobs")
 
 @app.route("/edit-job/<int:id>", methods=["GET", "POST"])
@@ -225,6 +229,7 @@ def edit_job(id):
     cur.execute("SELECT * FROM jobs WHERE id=%s", (id,))
     job = cur.fetchone()
     db.close()
+
     return render_template("edit_job.html", job=job)
 
 # =========================
@@ -246,7 +251,7 @@ def apply(job_id):
         resume = request.files.get("resume")
         filename = resume.filename
         resume.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
-        resume_path = filename
+
         cur.execute("""
             INSERT INTO applications
             (job_id, applicant_name, email, phone, resume_path)
@@ -268,9 +273,6 @@ def apply(job_id):
 # =========================
 # APPLICATIONS
 # =========================
-# =========================
-# APPLICATIONS
-# =========================
 @app.route("/applications")
 def applications():
     if not session.get("hr_logged_in"):
@@ -281,11 +283,9 @@ def applications():
     db = get_db(dict_cursor=True)
     cur = db.cursor()
 
-    # Jobs for dropdown
     cur.execute("SELECT id, title FROM jobs")
     jobs = cur.fetchall()
 
-    # Base query
     query = """
         SELECT applications.*, jobs.title AS job_title
         FROM applications
@@ -293,7 +293,6 @@ def applications():
     """
     params = []
 
-    # Apply filter if selected
     if selected_job:
         query += " WHERE jobs.id = %s"
         params.append(selected_job)
@@ -302,7 +301,6 @@ def applications():
 
     cur.execute(query, params)
     applications = cur.fetchall()
-
     db.close()
 
     return render_template(
@@ -336,3 +334,44 @@ def export_filtered_applications(job_id):
     db.close()
 
     return send_file(file_path, as_attachment=True)
+
+# =========================
+# SETTINGS – CHANGE PASSWORD
+# =========================
+@app.route("/settings", methods=["GET", "POST"])
+def settings():
+    if not session.get("hr_logged_in"):
+        return redirect("/")
+
+    message = None
+
+    if request.method == "POST":
+        old_password = request.form.get("old_password")
+        new_password = request.form.get("new_password")
+        confirm_password = request.form.get("confirm_password")
+
+        if new_password != confirm_password:
+            message = "Passwords do not match"
+        else:
+            db = get_db(dict_cursor=True)
+            cur = db.cursor()
+            cur.execute("SELECT * FROM admins WHERE email=%s", (session["admin_email"],))
+            admin = cur.fetchone()
+
+            if not admin or not check_password_hash(admin["password"], old_password):
+                message = "Old password incorrect"
+            else:
+                cur.execute("""
+                    UPDATE admins
+                    SET password=%s
+                    WHERE email=%s
+                """, (
+                    generate_password_hash(new_password),
+                    session["admin_email"]
+                ))
+                db.commit()
+                message = "Password updated successfully"
+
+            db.close()
+
+    return render_template("settings.html", message=message)
