@@ -2,32 +2,22 @@
 
 {% block content %}
 
-<h1 style="margin-bottom:10px;">Settings</h1>
+<h1 class="page-title">Settings</h1>
+<p class="subtitle">Change admin password</p>
 
-<p style="color:#94a3b8; margin-bottom:30px;">
-    Manage your account preferences
-</p>
+<div class="card" style="max-width:400px;">
 
-<div class="card" style="max-width:500px;">
-
-    <!-- ACCOUNT -->
-    <h3 style="margin-bottom:15px;">Account</h3>
-
-    <form method="post" action="/change-password">
+    <form method="POST">
         <input type="password" name="old_password" placeholder="Old Password" required>
         <input type="password" name="new_password" placeholder="New Password" required>
-        <button type="submit">Change Password</button>
+        <input type="password" name="confirm_password" placeholder="Confirm New Password" required>
+
+        <button type="submit">Update Password</button>
     </form>
 
-    <hr style="margin:30px 0; border-color:#1e293b;">
-
-    <!-- LOGOUT -->
-    <a href="/logout">
-        <button style="background:#ef4444; color:white;">
-            Logout
-        </button>
-    </a>
-
+    {% if message %}
+        <p style="margin-top:15px; color:#60a5fa;">{{ message }}</p>
+    {% endif %}
 </div>
 
 {% endblock %}

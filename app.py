@@ -1,11 +1,15 @@
-from flask import Flask, render_template, request, redirect, session, send_from_directory, send_file
+from flask import Flask, render_template, request, redirect, session, send_file
 import os
 import pandas as pd
 import psycopg2
 import psycopg2.extras
 from urllib.parse import urlparse
-from datetime import date
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import date
+
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 # =========================
 # BASIC APP CONFIG
@@ -13,11 +17,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "fallback-secret-key")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET")
+)
 
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads", "resumes")
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # =========================
 # DATABASE CONNECTION
@@ -46,7 +52,6 @@ def init_db():
     conn = get_db()
     cur = conn.cursor()
 
-    # Jobs
     cur.execute("""
         CREATE TABLE IF NOT EXISTS jobs (
             id SERIAL PRIMARY KEY,
@@ -58,7 +63,6 @@ def init_db():
         )
     """)
 
-    # Applications (CASCADE DELETE FIX)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS applications (
             id SERIAL PRIMARY KEY,
@@ -66,12 +70,11 @@ def init_db():
             applicant_name TEXT,
             email TEXT,
             phone TEXT,
-            resume_path TEXT,
+            resume_url TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
-    # Admins (for settings / change password)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS admins (
             id SERIAL PRIMARY KEY,
@@ -80,7 +83,6 @@ def init_db():
         )
     """)
 
-    # Default admin (only once)
     cur.execute("""
         INSERT INTO admins (email, password)
         SELECT %s, %s
@@ -96,17 +98,6 @@ def init_db():
 
 with app.app_context():
     init_db()
-
-# =========================
-# RESUME VIEW (URL OPEN / DOWNLOAD)
-# =========================
-@app.route("/resume/<path:filename>")
-def view_resume(filename):
-    return send_from_directory(
-        app.config["UPLOAD_FOLDER"],
-        filename,
-        as_attachment=False
-    )
 
 # =========================
 # AUTH
@@ -202,38 +193,8 @@ def delete_job(id):
 
     return redirect("/jobs")
 
-@app.route("/edit-job/<int:id>", methods=["GET", "POST"])
-def edit_job(id):
-    if not session.get("hr_logged_in"):
-        return redirect("/")
-
-    db = get_db(dict_cursor=True)
-    cur = db.cursor()
-
-    if request.method == "POST":
-        cur.execute("""
-            UPDATE jobs
-            SET title=%s, description=%s, location=%s, job_type=%s
-            WHERE id=%s
-        """, (
-            request.form.get("title"),
-            request.form.get("description"),
-            request.form.get("location"),
-            request.form.get("job_type"),
-            id
-        ))
-        db.commit()
-        db.close()
-        return redirect("/jobs")
-
-    cur.execute("SELECT * FROM jobs WHERE id=%s", (id,))
-    job = cur.fetchone()
-    db.close()
-
-    return render_template("edit_job.html", job=job)
-
 # =========================
-# APPLY JOB
+# APPLY JOB (CLOUDINARY FINAL)
 # =========================
 @app.route("/apply/<int:job_id>", methods=["GET", "POST"])
 def apply(job_id):
@@ -249,20 +210,27 @@ def apply(job_id):
 
     if request.method == "POST":
         resume = request.files.get("resume")
-        filename = resume.filename
-        resume.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+
+        upload_result = cloudinary.uploader.upload(
+            resume,
+            folder="resumes",
+            resource_type="raw"
+        )
+
+        resume_url = upload_result["secure_url"]
 
         cur.execute("""
             INSERT INTO applications
-            (job_id, applicant_name, email, phone, resume_path)
+            (job_id, applicant_name, email, phone, resume_url)
             VALUES (%s, %s, %s, %s, %s)
         """, (
             job_id,
             request.form.get("name"),
             request.form.get("email"),
             request.form.get("phone"),
-            filename
+            resume_url
         ))
+
         db.commit()
         db.close()
         return "Application submitted successfully!"
@@ -334,44 +302,3 @@ def export_filtered_applications(job_id):
     db.close()
 
     return send_file(file_path, as_attachment=True)
-
-# =========================
-# SETTINGS – CHANGE PASSWORD
-# =========================
-@app.route("/settings", methods=["GET", "POST"])
-def settings():
-    if not session.get("hr_logged_in"):
-        return redirect("/")
-
-    message = None
-
-    if request.method == "POST":
-        old_password = request.form.get("old_password")
-        new_password = request.form.get("new_password")
-        confirm_password = request.form.get("confirm_password")
-
-        if new_password != confirm_password:
-            message = "Passwords do not match"
-        else:
-            db = get_db(dict_cursor=True)
-            cur = db.cursor()
-            cur.execute("SELECT * FROM admins WHERE email=%s", (session["admin_email"],))
-            admin = cur.fetchone()
-
-            if not admin or not check_password_hash(admin["password"], old_password):
-                message = "Old password incorrect"
-            else:
-                cur.execute("""
-                    UPDATE admins
-                    SET password=%s
-                    WHERE email=%s
-                """, (
-                    generate_password_hash(new_password),
-                    session["admin_email"]
-                ))
-                db.commit()
-                message = "Password updated successfully"
-
-            db.close()
-
-    return render_template("settings.html", message=message)
