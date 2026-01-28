@@ -201,6 +201,7 @@ def apply(job_id):
     db = get_db(dict_cursor=True)
     cur = db.cursor()
 
+    # Fetch job
     cur.execute("SELECT * FROM jobs WHERE id=%s", (job_id,))
     job = cur.fetchone()
 
@@ -209,29 +210,53 @@ def apply(job_id):
         return "Job not found", 404
 
     if request.method == "POST":
+        name = request.form.get("name")
+        email = request.form.get("email")
+        phone = request.form.get("phone")
         resume = request.files.get("resume")
 
-        upload_result = cloudinary.uploader.upload(
-            resume,
-            folder="resumes",
-            resource_type="raw"
-        )
+        # 🔴 SAFETY CHECKS
+        if not name or not email or not phone:
+            db.close()
+            return "All fields are required", 400
 
-        resume_url = upload_result["secure_url"]
+        if not resume:
+            db.close()
+            return "Resume file not uploaded", 400
 
-        cur.execute("""
-            INSERT INTO applications
-            (job_id, applicant_name, email, phone, resume_url)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (
-            job_id,
-            request.form.get("name"),
-            request.form.get("email"),
-            request.form.get("phone"),
-            resume_url
-        ))
+        try:
+            # ☁️ Upload to Cloudinary
+            upload_result = cloudinary.uploader.upload(
+                resume,
+                folder="resumes",
+                resource_type="raw"
+            )
 
-        db.commit()
+            resume_url = upload_result.get("secure_url")
+
+            if not resume_url:
+                raise Exception("Resume upload failed")
+
+            # 🧾 Save application
+            cur.execute("""
+                INSERT INTO applications
+                (job_id, applicant_name, email, phone, resume_url)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (
+                job_id,
+                name,
+                email,
+                phone,
+                resume_url
+            ))
+
+            db.commit()
+
+        except Exception as e:
+            db.rollback()
+            db.close()
+            return f"Error submitting application: {str(e)}", 500
+
         db.close()
         return "Application submitted successfully!"
 
