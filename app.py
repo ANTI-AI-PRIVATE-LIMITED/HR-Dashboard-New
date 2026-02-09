@@ -1,53 +1,20 @@
-from flask import Flask, render_template, request, redirect, session, send_file
+from flask import Flask, render_template, request, redirect, session, send_file, send_from_directory
 from functools import wraps
 import os
 import pandas as pd
 from datetime import datetime
-import psycopg2
-import psycopg2.extras
-from psycopg2 import pool
 from dotenv import load_dotenv
-from flask import send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
+from supabase_client import supabase
+from uuid import uuid4
 
 load_dotenv()
 
-# =========================
-# APP CONFIG
-# =========================
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret")
 
 UPLOAD_FOLDER = "uploads/resumes"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-# =========================
-# DB POOL
-# =========================
-db_pool = None
-
-def init_db_pool():
-    global db_pool
-    if not db_pool:
-        db_pool = pool.SimpleConnectionPool(
-            minconn=1,
-            maxconn=5,
-            dsn=DATABASE_URL,
-            sslmode="require"
-        )
-
-def get_db(dict_cursor=False):
-    init_db_pool()
-    conn = db_pool.getconn()
-    if dict_cursor:
-        return conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    return conn, conn.cursor()
-
-def release_db(conn, cur):
-    cur.close()
-    db_pool.putconn(conn)
 
 # =========================
 # LOGIN REQUIRED
@@ -61,7 +28,7 @@ def login_required(f):
     return wrap
 
 # =========================
-# AUTH
+# AUTH (Temporary Basic Auth)
 # =========================
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -69,26 +36,8 @@ def login():
         email = request.form["email"]
         password = request.form["password"]
 
-        conn, cur = get_db(True)
-
-        #  First check: users table (secure auth)
-        cur.execute("SELECT * FROM users WHERE email=%s", (email,))
-        user = cur.fetchone()
-
-        if user and check_password_hash(user["password"], password):
-            session.clear()
-            session["hr_logged_in"] = True
-            session["user_email"] = user["email"]
-            release_db(conn, cur)
-            return redirect("/dashboard")
-
-        # Fallback: old admin login (no breaking)
-        cur.execute("SELECT * FROM admins WHERE email=%s", (email,))
-        admin = cur.fetchone()
-        release_db(conn, cur)
-
-        if admin and admin["password"] == password:
-            session.clear()
+        # TEMP LOGIN (Supabase me users table nahi hai abhi)
+        if email == "admin@hr.com" and password == "admin":
             session["hr_logged_in"] = True
             return redirect("/dashboard")
 
@@ -107,15 +56,8 @@ def logout():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    conn, cur = get_db(True)
-
-    cur.execute("SELECT COUNT(*) AS total FROM jobs")
-    total_jobs = cur.fetchone()["total"]
-
-    cur.execute("SELECT COUNT(*) AS total FROM applications")
-    total_applications = cur.fetchone()["total"]
-
-    release_db(conn, cur)
+    total_jobs = len(supabase.table("jobs").select("*").execute().data)
+    total_applications = len(supabase.table("applications").select("*").execute().data)
 
     return render_template(
         "dashboard.html",
@@ -129,80 +71,55 @@ def dashboard():
 @app.route("/jobs", methods=["GET", "POST"])
 @login_required
 def jobs():
-    conn, cur = get_db(True)
 
     if request.method == "POST":
-        cur.execute("""
-            INSERT INTO jobs (title, description, location, job_type)
-            VALUES (%s, %s, %s, %s)
-        """, (
-            request.form["title"],
-            request.form["description"],
-            request.form["location"],
-            request.form["job_type"]
-        ))
-        conn.commit()
+        supabase.table("jobs").insert({
+            "title": request.form["title"],
+            "location": request.form["location"],
+            "department": request.form.get("job_type"),
+            "description": request.form["description"]
+        }).execute()
 
-    cur.execute("SELECT * FROM jobs ORDER BY id DESC")
-    jobs = cur.fetchall()
-    release_db(conn, cur)
-
+    jobs = supabase.table("jobs").select("*").order("created_at", desc=True).execute().data
     return render_template("jobs.html", jobs=jobs)
 
-@app.route("/delete-job/<int:job_id>")
+@app.route("/delete-job/<job_id>")
 @login_required
 def delete_job(job_id):
-    conn, cur = get_db()
-    cur.execute("DELETE FROM jobs WHERE id=%s", (job_id,))
-    conn.commit()
-    release_db(conn, cur)
+    supabase.table("jobs").delete().eq("id", job_id).execute()
     return redirect("/jobs")
 
 # =========================
 # EDIT JOB
 # =========================
-@app.route("/edit-job/<int:job_id>", methods=["GET", "POST"])
+@app.route("/edit-job/<job_id>", methods=["GET", "POST"])
 @login_required
 def edit_job(job_id):
-    conn, cur = get_db(True)
 
     if request.method == "POST":
-        cur.execute("""
-            UPDATE jobs
-            SET title=%s, description=%s, location=%s, job_type=%s
-            WHERE id=%s
-        """, (
-            request.form["title"],
-            request.form["description"],
-            request.form["location"],
-            request.form["job_type"],
-            job_id
-        ))
-        conn.commit()
-        release_db(conn, cur)
+        supabase.table("jobs").update({
+            "title": request.form["title"],
+            "location": request.form["location"],
+            "department": request.form.get("job_type"),
+            "description": request.form["description"]
+        }).eq("id", job_id).execute()
+
         return redirect("/jobs")
 
-    cur.execute("SELECT * FROM jobs WHERE id=%s", (job_id,))
-    job = cur.fetchone()
-    release_db(conn, cur)
-
+    job = supabase.table("jobs").select("*").eq("id", job_id).execute().data
     if not job:
         return "Job not found", 404
 
-    return render_template("edit_job.html", job=job)
+    return render_template("edit_job.html", job=job[0])
 
 # =========================
-# APPLY JOB (URL APPROACH FINAL)
+# APPLY JOB
 # =========================
-@app.route("/apply/<int:job_id>", methods=["GET", "POST"])
+@app.route("/apply/<job_id>", methods=["GET", "POST"])
 def apply(job_id):
-    conn, cur = get_db(True)
 
-    cur.execute("SELECT * FROM jobs WHERE id=%s", (job_id,))
-    job = cur.fetchone()
-
+    job = supabase.table("jobs").select("*").eq("id", job_id).execute().data
     if not job:
-        release_db(conn, cur)
         return "Job not found", 404
 
     if request.method == "POST":
@@ -210,27 +127,54 @@ def apply(job_id):
         resume_url = None
 
         if resume and resume.filename:
-            filename = f"{int(datetime.now().timestamp())}_{resume.filename}"
-            resume.save(os.path.join(UPLOAD_FOLDER, filename))
-            resume_url = f"/uploads/resumes/{filename}"
+            file_ext = resume.filename.split(".")[-1]
+            file_name = f"{uuid4()}.{file_ext}"
 
-        cur.execute("""
-            INSERT INTO applications (job_id, applicant_name, email, phone, resume_url)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (
-            job_id,
-            request.form["name"],
-            request.form["email"],
-            request.form["phone"],
-            resume_url
-        ))
+            file_bytes = resume.read()
 
-        conn.commit()
-        release_db(conn, cur)
+            supabase.storage.from_("resumes").upload(
+                file_name,
+                file_bytes,
+                {"content-type": resume.content_type}
+            )
+
+            resume_url = supabase.storage.from_("resumes").get_public_url(file_name)
+
+        supabase.table("applications").insert({
+            "job_id": job_id,
+            "name": request.form["name"],
+            "email": request.form["email"],
+            "phone": request.form["phone"],
+            "resume_url": resume_url
+        }).execute()
+
         return "Application submitted successfully!"
 
-    release_db(conn, cur)
-    return render_template("apply.html", job=job)
+    return render_template("apply.html", job=job[0])
+# =========================
+# SETTINGS
+# =========================
+@app.route("/settings", methods=["GET", "POST"])
+@login_required
+def settings():
+
+    message = None
+
+    if request.method == "POST":
+        old = request.form.get("old_password")
+        new = request.form.get("new_password")
+        confirm = request.form.get("confirm_password")
+
+        if new != confirm:
+            message = "Passwords do not match"
+        else:
+            # Temporary password logic (since Supabase Auth not added yet)
+            if old == "admin":
+                message = "Password updated successfully (temporary login)"
+            else:
+                message = "Old password incorrect"
+
+    return render_template("settings.html", message=message)
 
 # =========================
 # APPLICATIONS
@@ -238,88 +182,15 @@ def apply(job_id):
 @app.route("/applications")
 @login_required
 def applications():
-    selected_job = request.args.get("job_id")
 
-    conn, cur = get_db(True)
-
-    cur.execute("SELECT id, title FROM jobs")
-    jobs = cur.fetchall()
-
-    query = """
-        SELECT applications.*, jobs.title AS job_title
-        FROM applications
-        JOIN jobs ON applications.job_id = jobs.id
-    """
-
-    params = ()
-    if selected_job:
-        query += " WHERE jobs.id = %s"
-        params = (selected_job,)
-
-    query += " ORDER BY applications.id DESC"
-
-    cur.execute(query, params)
-    applications = cur.fetchall()
-
-    release_db(conn, cur)
+    jobs = supabase.table("jobs").select("id,title").execute().data
+    applications = supabase.table("applications").select("*").execute().data
 
     return render_template(
         "applications.html",
         applications=applications,
-        jobs=jobs,
-        selected_job=selected_job
+        jobs=jobs
     )
-
-# =========================
-# SETTINGS
-# =========================
-@app.route("/settings", methods=["GET", "POST"])
-@login_required
-def settings():
-    message = None
-
-    if request.method == "POST":
-        old = request.form["old_password"]
-        new = request.form["new_password"]
-        confirm = request.form["confirm_password"]
-
-        if new != confirm:
-            message = "Passwords do not match"
-        else:
-            conn, cur = get_db(True)
-
-            #  FIRST: check users table (secure users)
-            cur.execute("SELECT * FROM users WHERE email=%s", (session.get("user_email"),))
-            user = cur.fetchone()
-
-            if user:
-                # verify old password (hashed)
-                if check_password_hash(user["password"], old):
-                    new_hash = generate_password_hash(new)
-                    cur.execute(
-                        "UPDATE users SET password=%s WHERE email=%s",
-                        (new_hash, user["email"])
-                    )
-                    conn.commit()
-                    message = "Password updated successfully"
-                else:
-                    message = "Old password incorrect"
-
-            else:
-                #  FALLBACK: old admin logic (no breaking)
-                cur.execute("SELECT * FROM admins LIMIT 1")
-                admin = cur.fetchone()
-
-                if admin and admin["password"] == old:
-                    cur.execute("UPDATE admins SET password=%s", (new,))
-                    conn.commit()
-                    message = "Password updated successfully"
-                else:
-                    message = "Old password incorrect"
-
-            release_db(conn, cur)
-
-    return render_template("settings.html", message=message)
 
 # =========================
 # EXCEL DOWNLOAD
@@ -327,25 +198,13 @@ def settings():
 @app.route("/download-excel")
 @login_required
 def download_excel():
-    job_id = request.args.get("job_id")
 
-    conn, _ = get_db()
-
-    query = """
-        SELECT j.title, a.applicant_name, a.email, a.phone, a.created_at
-        FROM applications a
-        JOIN jobs j ON a.job_id = j.id
-    """
-
-    params = ()
-    if job_id:
-        query += " WHERE j.id = %s"
-        params = (job_id,)
-
-    df = pd.read_sql(query, conn, params=params)
+    apps = supabase.table("applications").select("*").execute().data
+    df = pd.DataFrame(apps)
 
     file_path = "applications.xlsx"
     df.to_excel(file_path, index=False)
+
     return send_file(file_path, as_attachment=True)
 
 # =========================
@@ -354,6 +213,36 @@ def download_excel():
 @app.route("/uploads/resumes/<path:filename>")
 def serve_resume(filename):
     return send_from_directory("uploads/resumes", filename)
+
+@app.route("/contact-us")
+@login_required
+def contact_us():
+    contacts = supabase.table("contact_us") \
+        .select("*") \
+        .order("created_at", desc=True) \
+        .execute().data
+
+    return render_template("contact_us.html", contacts=contacts)
+
+# =========================
+# ADD TEST CONTACT (FOR TESTING)
+# =========================
+@app.route("/contact-us/add", methods=["GET", "POST"])
+@login_required
+def add_contact_us():
+
+    if request.method == "POST":
+        supabase.table("contact_us").insert({
+            "full_name": request.form["full_name"],
+            "company": request.form.get("company"),
+            "email": request.form["email"],
+            "phone": request.form.get("phone"),
+            "message": request.form["message"]
+        }).execute()
+
+        return redirect("/contact-us")
+
+    return render_template("add_contact_us.html")
 
 # =========================
 if __name__ == "__main__":

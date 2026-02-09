@@ -4,10 +4,8 @@
 <h1 class="page-title">Job Applications</h1>
 <p class="subtitle">Review and manage candidate applications</p>
 
-<!-- ================= ACTION BAR ================= -->
 <div class="action-bar" style="display:flex; gap:16px; align-items:center; margin-bottom:18px;">
 
-    <!-- SEARCH -->
     <input type="text"
            id="searchInput"
            placeholder="Search applications..."
@@ -15,17 +13,14 @@
            class="search-input"
            style="width:220px">
 
-    <!-- DOWNLOAD BUTTONS -->
     <div class="download-buttons" style="display:flex; gap:10px;">
 
-        <!-- Download ALL Excel -->
         <a href="/download-excel">
             <button type="button" class="btn btn-primary">
                 Download All Excel
             </button>
         </a>
 
-        <!-- Download FILTERED Excel -->
         {% if selected_job %}
             <a href="/download-excel?job_id={{ selected_job }}">
                 <button type="button" class="btn btn-primary">
@@ -37,7 +32,6 @@
     </div>
 </div>
 
-<!-- ================= FILTER BAR ================= -->
 <form method="GET"
       action="/applications"
       class="filter-bar"
@@ -59,13 +53,12 @@
 
 </form>
 
-<!-- ================= APPLICATIONS TABLE ================= -->
 <div class="card">
     <table id="applicationsTable">
         <thead>
             <tr>
                 <th>Job</th>
-                <th>Applicant</th>
+                <th>Candidate Name</th>
                 <th>Email</th>
                 <th>Phone</th>
                 <th>Resume</th>
@@ -76,7 +69,7 @@
         {% for app in applications %}
             <tr>
                 <td>{{ app.job_title }}</td>
-                <td>{{ app.applicant_name }}</td>
+                <td>{{ app.name }}</td>
                 <td>{{ app.email }}</td>
                 <td>{{ app.phone }}</td>
                 <td>
@@ -100,7 +93,6 @@
     </table>
 </div>
 
-<!-- ================= SEARCH SCRIPT ================= -->
 <script>
 function searchApplications() {
     const input = document.getElementById("searchInput").value.toLowerCase();
@@ -111,51 +103,3 @@ function searchApplications() {
 </script>
 
 {% endblock %}
-
-<!-- ================= STYLES ================= -->
-<style>
-.search-input{
-    padding:10px 14px;
-    background:#0f0f0f;
-    border:1px solid #222;
-    border-radius:8px;
-    color:white;
-}
-
-.select{
-    padding:10px 14px;
-    background:#0f0f0f;
-    border:1px solid #222;
-    border-radius:8px;
-    color:white;
-    min-width:220px;
-}
-
-.btn{
-    padding:10px 16px;
-    border-radius:8px;
-    font-weight:600;
-    cursor:pointer;
-    transition:0.2s;
-}
-
-.btn-primary{
-    background:white;
-    color:black;
-    border:none;
-}
-
-.btn-primary:hover{
-    background:#e5e5e5;
-}
-
-.btn-outline{
-    background:transparent;
-    border:1px solid #444;
-    color:white;
-}
-
-.btn-outline:hover{
-    background:#111;
-}
-</style>

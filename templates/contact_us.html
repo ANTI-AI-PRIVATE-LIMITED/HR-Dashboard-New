@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1 class="page-title">Contact Requests</h1>
+<p class="subtitle">Messages received from contact form</p>
+
+<div class="card">
+    <a href="/contact-us/add" class="btn btn-primary" style="margin-bottom:16px; display:inline-block;">
+    ➕ Add Test Contact
+</a>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Company</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Message</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+
+        <tbody>
+        {% for c in contacts %}
+            <tr>
+                <td>{{ c.full_name }}</td>
+                <td>{{ c.company or "-" }}</td>
+                <td>{{ c.email }}</td>
+                <td>{{ c.phone or "-" }}</td>
+                <td style="max-width:300px;">{{ c.message }}</td>
+                <td>{{ c.created_at }}</td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="6" style="text-align:center; opacity:0.6;">
+                    No contact requests found
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

@@ -127,6 +127,12 @@
             <a href="/settings" class="{% if request.path.startswith('/settings') %}active{% endif %}">
                 ⚙️ Settings
             </a>
+            <li>
+    <a href="{{ url_for('contact_us') }}">
+        Contact Us
+    </a>
+</li>
+
         </nav>
 
     </aside>
